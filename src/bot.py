@@ -5,6 +5,7 @@ import os
 from time import sleep
 from datetime import datetime
 import asyncio
+from dotenv import load_dotenv
 from spond import spond
 from logins import logins
 
@@ -12,6 +13,9 @@ intents = discord.Intents.default()
 intents.message_content = True  # Må aktiveres under Privileged Gateway Intents på https://discord.com/developers/applications/
                                 # (Message Content Intent)
 client = discord.Client(intents=intents)
+
+load_dotenv()
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 
 """
 Under her legger du til events og kommandoer som botten skal kunne utføre.
@@ -25,9 +29,20 @@ async def main():
     print(groups)
     await s.clientsession.close()
 
+def get_weather():
+    url = "http://api.weatherapi.com/v1/forecast.json"
+    params = {
+        "key": WEATHER_API_KEY,
+        "q": "Hommersåk",
+        "days": 1,
+        "aqi": "no",
+        "alerts": "no"
+    }
+    return requests.get(url, params=params).json()
+  
 async def weather_current(message):
     print('Henter værdata...')
-    r = requests.get("http://api.weatherapi.com/v1/forecast.json?key=9e2def4e7c0f4319bb4162254261701&q=Hommersåk&days=1&aqi=no&alerts=no").json()
+    r = get_weather()
 
     location = r["location"]
     current = r["current"]
@@ -54,23 +69,22 @@ async def weather_current(message):
 
 async def weather_sun(message):
     print('Henter værdata...')
-    r = requests.get(
-        "http://api.weatherapi.com/v1/forecast.json?key=9e2def4e7c0f4319bb4162254261701&q=Hommersåk&days=1&aqi=no&alerts=no").json()
+    r = get_weather()
 
     location = r["location"]['name']
     astro = r['forecast']['forecastday'][0]['astro']
     sunrise = astro['sunrise']
     sunset = astro['sunset']
 
-    sr = datetime.strptime(f'sunrise', '%I:%M %p')
+    sr = datetime.strptime(sunrise, '%I:%M %p')
     print(sr.strftime('%H:%M:%S'))
 
-    ss = datetime.strptime(f'sunset', '%I:%M %p')
+    ss = datetime.strptime(sunset, '%I:%M %p')
     print(ss.strftime('%H:%M:%S'))
 
     await message.author.send(f"The sun in {location}, today:")
-    await message.author.send(f"    Sunrise: {sr}")
-    await message.author.send(f"    Sunset: {ss}")
+    await message.author.send(f"Sunrise: {sr.strftime('%H:%M')}")
+    await message.author.send(f"Sunset: {ss.strftime('%H:%M')}")
 
 @client.event
 async def on_ready():
